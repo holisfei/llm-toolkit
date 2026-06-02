@@ -39,5 +39,13 @@ class QwenProvider(BaseProvider):
                 raw=res_json
             )
             return res
-    def stream_chat(self, messages: list[Message], model: str = "qwen3.5-plus-2026-02-15") -> AsyncIterator[str]:
-        pass
+    
+    async def stream_chat(self, messages: list[Message], model: str = "qwen3.5-plus-2026-02-15") -> AsyncIterator[str]:
+        stream_options = {"stream_options": {"include_usage": True}}
+        params = generate_params(messages=messages, model=model, stream=True, extra=stream_options)
+
+        async with httpx.AsyncClient(headers=self.headers, timeout=self.timeout) as client:
+            async with client.stream("POST", url=self.url, json=params) as response:
+                response.raise_for_status()
+                async for text in parse_openai_sse(response.aiter_lines()):
+                    yield text
