@@ -8,6 +8,7 @@ import httpx
 from dotenv import load_dotenv
 
 from llm_toolkit.providers.base import BaseProvider, generate_params
+from llm_toolkit.retry import make_retrying
 from llm_toolkit.streaming import parse_anthropic_sse
 from llm_toolkit.types import ChatResponse, EnvApiKeyName, LLMUrl, Message, Usage
 
@@ -33,25 +34,29 @@ class AnthropicProvider(BaseProvider):
         params["max_tokens"] = 2048
 
         async with httpx.AsyncClient(headers=self.headers, timeout=self.timeout) as client:
-            response = await client.post(url=self.url, json=params)
-            response.raise_for_status()
-            res_json = response.json()
-            # print(f"Anthropic响应：{res_json}")
-            content: dict[str, Any] = res_json["content"][0]
-            usage: dict[str, Any] = res_json["usage"]
-            res = ChatResponse(
-                content=content["text"],
-                usage=Usage(
-                    input_tokens=usage["input_tokens"], 
-                    output_tokens=usage["output_tokens"], 
-                    # 通过 dict.get(key, 默认值) 安全取值
-                    cached_tokens=usage.get("cache_creation_input_tokens", 0)
-                ),
-                model=res_json["model"],
-                raw=res_json
-            )
-            return res
-        
+            # 重试逻辑
+            async for attempt in make_retrying():
+                with attempt:
+                    response = await client.post(url=self.url, json=params)
+                    response.raise_for_status()
+                    res_json = response.json()
+                    # print(f"Anthropic响应：{res_json}")
+                    content: dict[str, Any] = res_json["content"][0]
+                    usage: dict[str, Any] = res_json["usage"]
+                    res = ChatResponse(
+                        content=content["text"],
+                        usage=Usage(
+                            input_tokens=usage["input_tokens"], 
+                            output_tokens=usage["output_tokens"], 
+                            # 通过 dict.get(key, 默认值) 安全取值
+                            cached_tokens=usage.get("cache_creation_input_tokens", 0)
+                        ),
+                        model=res_json["model"],
+                        raw=res_json
+                    )
+                    return res
+        raise RuntimeError("重试循环已用尽且无返回结果——无法访问。")
+    
     async def stream_chat(self, messages: list[Message], model: str) -> AsyncIterator[str]:
         params = generate_params(messages=messages, model=model, stream=True)
         params["max_tokens"] = 2048
