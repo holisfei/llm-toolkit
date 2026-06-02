@@ -93,7 +93,7 @@ tests
 ```bash
 uv run ruff check src/ tests/
 uv run mypy src/ tests/
-uv run pytest tests/
+uv run pytest tests/ -v -s
 ```
 
 ## Roadmap
