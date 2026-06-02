@@ -5,14 +5,14 @@ from loguru import logger
 from tenacity import AsyncRetrying, RetryCallState, retry_if_exception, stop_after_attempt, wait_exponential
 
 # 需要重试的错误码
-RETRYABLE_STATUS = {
+RETRYABLE_STATUS: list[int] = [
     429,        # rate limit
     500,        # internal server error
     502,        # bad gateway
     503,        # service unavailable
     504,        # gateway timeout
     529,        # anthropic overloaded(非标准,但 Anthropic 在用)
-}
+]
 
 def is_retryable_exception(exc: BaseException) -> bool:
     """判断错误是否需要重试"""
