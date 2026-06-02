@@ -10,21 +10,22 @@ from llm_toolkit.streaming import parse_openai_sse
 from llm_toolkit.types import ChatResponse, LLMUrl, Message, Usage
 
 
-class GlmProvider(BaseProvider): 
+class QwenProvider(BaseProvider):
 
     def __init__(self, api_key: str | None = None, env_name: str = ""):
         super().__init__(api_key, env_name)
-        self.url = f"{LLMUrl.GLM.base_url}{LLMUrl.GLM.end_point}"
+        self.url = f"{LLMUrl.QWEN.base_url}{LLMUrl.QWEN.end_point}"
+        
 
-    async def chat(self, messages: list[Message], model: str = "glm-4.7") -> ChatResponse:
+    async def chat(self, messages: list[Message], model: str = "qwen3.5-plus-2026-02-15") -> ChatResponse:
         params = generate_params(messages=messages, model=model)
-
+        print(self.headers)
         async with httpx.AsyncClient(headers=self.headers, timeout=self.timeout) as client:
             response = await client.post(url=self.url, json=params)
             response.raise_for_status()
             res_json = response.json()
-
-            message: dict[str, Any] = res_json["choices"][0]["message"]
+            print(res_json)
+            message: dict[str, Any] = res_json["choices"][0]["content"]
             usage: dict[str, Any] = res_json["usage"]
             res = ChatResponse(
                 content=message["content"],
@@ -38,13 +39,5 @@ class GlmProvider(BaseProvider):
                 raw=res_json
             )
             return res
-    
-    async def stream_chat(self, messages: list[Message], model: str) -> AsyncIterator[str]:
-        stream_options = {"stream_options": {"include_usage": True}}
-        params = generate_params(messages=messages, model=model, stream=True, extra=stream_options)
-
-        async with httpx.AsyncClient(headers=self.headers, timeout=self.timeout) as client:
-            async with client.stream("POST", url=self.url, json=params) as response:
-                response.raise_for_status()
-                async for text in parse_openai_sse(response.aiter_lines()):
-                    yield text
+    def stream_chat(self, messages: list[Message], model: str = "qwen3.5-plus-2026-02-15") -> AsyncIterator[str]:
+        pass

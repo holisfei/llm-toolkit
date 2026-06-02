@@ -9,13 +9,15 @@ async def main() -> None:
     model_deepseek = "deepseek-v4-flash"
     model_claude = "claude-sonnet-4-6"
     model_glm = "glm-4.7"
+    model_qwen = "qwen3.5-plus-2026-02-15"
 
     question = "一句话说明你是谁"
     msgs: list[Message] = [Message(role=Role.USER, content=question)]
 
-    print(f"\n{'='*50}\n流式输出:\n{'='*50}")
+    print(f"\n{'='*50}\n输出:\n{'='*50}")
 
     llm = LLM(model_claude)
+
     # res = await llm.chat(messages=msgs)
     # print(res.content)
     

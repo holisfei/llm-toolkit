@@ -15,8 +15,11 @@ load_dotenv()
 
 
 class AnthropicProvider(BaseProvider):
-    async def chat(self, messages: list[Message], model: str ="claude-sonnet-4-6") -> ChatResponse:
-        url = f"{LLMUrl.ANTHROPIC.base_url}{LLMUrl.ANTHROPIC.end_point}"
+
+    def __init__(self, api_key: str | None = None, env_name: str = ""):
+        super().__init__(api_key, env_name)
+        
+        self.url = f"{LLMUrl.ANTHROPIC.base_url}{LLMUrl.ANTHROPIC.end_point}"
 
         if "Authorization" in self.headers:
             self.headers.pop("Authorization")
@@ -25,11 +28,12 @@ class AnthropicProvider(BaseProvider):
         if key:
             self.headers["x-api-key"] = key
 
+    async def chat(self, messages: list[Message], model: str ="claude-sonnet-4-6") -> ChatResponse:
         params = generate_params(messages=messages, model=model, stream=False)
         params["max_tokens"] = 2048
 
         async with httpx.AsyncClient(headers=self.headers, timeout=self.timeout) as client:
-            response = await client.post(url=url, json=params)
+            response = await client.post(url=self.url, json=params)
             response.raise_for_status()
             res_json = response.json()
             # print(f"Anthropic响应：{res_json}")
@@ -49,20 +53,11 @@ class AnthropicProvider(BaseProvider):
             return res
         
     async def stream_chat(self, messages: list[Message], model: str) -> AsyncIterator[str]:
-        url = f"{LLMUrl.ANTHROPIC.base_url}{LLMUrl.ANTHROPIC.end_point}"
-
-        if "Authorization" in self.headers:
-            self.headers.pop("Authorization")
-        self.headers["anthropic-version"] = "2023-06-01"
-        key: str | None = os.getenv(EnvApiKeyName.ANTHROPIC_API_KEY)
-        if key:
-            self.headers["x-api-key"] = key
-
         params = generate_params(messages=messages, model=model, stream=True)
         params["max_tokens"] = 2048
 
         async with httpx.AsyncClient(headers=self.headers, timeout=self.timeout) as client:
-            async with client.stream("POST", url=url, json=params) as response:
+            async with client.stream("POST", url=self.url, json=params) as response:
                 response.raise_for_status()
                 async for text in parse_anthropic_sse(response.aiter_lines()):
                     yield text

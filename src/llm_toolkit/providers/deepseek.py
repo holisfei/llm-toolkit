@@ -11,13 +11,16 @@ from llm_toolkit.types import ChatResponse, LLMUrl, Message, Usage
 
 
 class DeepSeekProvider(BaseProvider):
-    async def chat(self, messages: list[Message], model: str = "deepseek-v4-flash") -> ChatResponse:
 
-        url = f"{LLMUrl.DEEPSEEK.base_url}{LLMUrl.DEEPSEEK.end_point}"
+    def __init__(self, api_key: str | None = None, env_name: str = ""):
+        super().__init__(api_key, env_name)
+        self.url = f"{LLMUrl.DEEPSEEK.base_url}{LLMUrl.DEEPSEEK.end_point}"
+
+    async def chat(self, messages: list[Message], model: str = "deepseek-v4-flash") -> ChatResponse:
         params = generate_params(messages=messages, model=model)
 
         async with httpx.AsyncClient(headers=self.headers, timeout=self.timeout) as client:
-            response = await client.post(url=url, json=params)
+            response = await client.post(url=self.url, json=params)
             response.raise_for_status()
             res_json = response.json()
 
@@ -40,10 +43,8 @@ class DeepSeekProvider(BaseProvider):
         stream_options = {"stream_options": {"include_usage": True}}
         params = generate_params(messages=messages, model=model, stream=True, extra=stream_options)
 
-        url = f"{LLMUrl.DEEPSEEK.base_url}{LLMUrl.DEEPSEEK.end_point}"
-
         async with httpx.AsyncClient(headers=self.headers, timeout=self.timeout) as client:
-            async with client.stream("POST", url=url, json=params) as response:
+            async with client.stream("POST", url=self.url, json=params) as response:
                 response.raise_for_status()
                 async for text in parse_openai_sse(response.aiter_lines()):
                     yield text

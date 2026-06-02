@@ -17,6 +17,7 @@ class EnvApiKeyName(StrEnum):
     ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY"
     DEEPSEEK_API_KEY = "DEEPSEEK_API_KEY"
     ZAI_API_KEY = "ZAI_API_KEY"
+    DASHSCOPE_API_KEY = "DASHSCOPE_API_KEY"
 
 @dataclass
 class ApiUrl:
@@ -28,7 +29,7 @@ class LLMUrl(str, ApiUrl):
     ANTHROPIC = ApiUrl(base_url="https://api.anthropic.com", end_point="/v1/messages")
     DEEPSEEK = ApiUrl(base_url="https://api.deepseek.com", end_point="/chat/completions")
     GLM = ApiUrl(base_url="https://open.bigmodel.cn", end_point="/api/paas/v4/chat/completions")
-
+    QWEN = ApiUrl(base_url="https://ws-ly70qjwnoyegh3bs.ap-southeast-1.maas.aliyuncs.com", end_point="/compatible-mode/v1/chat/completions")
 
 class Message(BaseModel):
     role: Role
