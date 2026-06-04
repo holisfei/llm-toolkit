@@ -3,6 +3,8 @@ import asyncio
 from llm_toolkit.client import LLM
 from llm_toolkit.types import Message, Role
 
+from llm_toolkit.cost import compute_cost
+from llm_toolkit.types import Usage
 
 async def main() -> None:
 
@@ -20,6 +22,10 @@ async def main() -> None:
 
     res = await llm.chat(messages=msgs)
     print(res.content)
+
+    # 1M input + 1M output @ Sonnet 4.6 = $3 + $15 = $18
+    cost = compute_cost(Usage(input_tokens=1_000_000, output_tokens=1_000_000), "claude-sonnet-4-6")
+    print(cost.total_usd)   # 期望 18.0
     
     # full = ""
     # async for chunk in llm.stream_chat(messages=msgs):

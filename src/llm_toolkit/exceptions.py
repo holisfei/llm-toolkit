@@ -72,4 +72,4 @@ class LLMServerError(LLMRequestError):
     """5xx/529 — 服务端临时崩溃。"""
 
 class LLMTimeoutError(LLMError):
-    """网络超时 / asyncio 墙钟超时 —— 不带 status_code,但带 provider。"""
+    """网络超时 / asyncio 超时 —— 不带 status_code,但带 provider。"""
