@@ -4,18 +4,22 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 from dotenv import load_dotenv
 
 # from loguru import logger
+from llm_toolkit.exceptions import LLMAuthError, LLMBadRequestError, LLMRateLimitError, LLMRequestError, LLMServerError
 from llm_toolkit.types import ChatResponse, Message
 
 load_dotenv()
 
 class BaseProvider(ABC):
     """所有 provider 适配器的统一接口。"""
+
+    # 子类必须定义, ClassVar明确标记某个属性是“类变量”，而不是实例变量
+    name: ClassVar[str]
 
     def __init__(self, api_key: str | None = None, env_name: str = ""):
         self.api_key = api_key
@@ -39,6 +43,8 @@ class BaseProvider(ABC):
     def stream_chat(self, messages: list[Message], model: str) -> AsyncIterator[str]:
         """流式对话。在各个子类里实现。"""
 
+# 辅助方法
+
 def generate_params(
      messages: list[Message], 
      model: str, 
@@ -54,3 +60,29 @@ def generate_params(
         params.update(extra)
     # logger.debug(f"参数: {json.dumps(params, indent=4, ensure_ascii=False)}")
     return params
+
+def translate_http_error(e: httpx.HTTPStatusError, provider: str) -> LLMRequestError:
+    """根据 HTTP 状态码翻译成对应的 LLM 异常子类。"""
+    status = e.response.status_code
+    raw = e.response.text
+    
+    if status in (401, 403):
+        return LLMAuthError(
+            f"auth failed: HTTP {status}",
+            status_code=status, provider=provider, cause=e,
+        )
+    if status == 429:
+        return LLMRateLimitError(
+            f"rate limit exceeded: HTTP {status}",
+            status_code=status, provider=provider, cause=e,
+        )
+    if 500 <= status < 600 or status == 529:
+        return LLMServerError(
+            f"server error: HTTP {status}",
+            status_code=status, provider=provider, cause=e,
+        )
+    # 400/422 等其它 4xx
+    return LLMBadRequestError(
+        f"bad request: HTTP {status}: {raw[:200]}",
+        status_code=status, provider=provider, cause=e,
+    )

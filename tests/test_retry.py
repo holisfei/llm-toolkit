@@ -5,6 +5,15 @@ import json
 import httpx
 import pytest
 
+from llm_toolkit.exceptions import (
+    LLMAuthError,
+    LLMBadRequestError,
+    LLMConfigError,
+    LLMRateLimitError,
+    LLMResponseError,
+    LLMServerError,
+    LLMTimeoutError,
+)
 from llm_toolkit.retry import RETRYABLE_STATUS, is_retryable_exception
 
 
@@ -69,5 +78,28 @@ class TestIsRetryableException:
         """兜底:任意 Exception 默认不重试(保守策略)。"""
         exc = Exception("其他错误")
         assert not is_retryable_exception(exc)
-        
 
+
+
+class TestIsRetryableExceptionCustom:
+
+    @pytest.mark.parametrize("exc_class", [
+        LLMRateLimitError,
+        LLMServerError,
+        LLMTimeoutError,
+    ])
+    def test_retryable_llm_exceptions(self, exc_class: type[Exception]) -> None:
+        """LLM 体系内的临时性异常应该重试。"""
+        exc = exc_class("error")
+        assert is_retryable_exception(exc)
+
+    @pytest.mark.parametrize("exc_class", [
+        LLMConfigError,
+        LLMBadRequestError,
+        LLMAuthError,
+        LLMResponseError,
+    ])
+    def test_non_retryable_llm_exceptions(self, exc_class: type[Exception]) -> None:
+        """LLM 体系内的配置错/请求错/响应解析错都不应该重试。"""
+        exc = exc_class("error")
+        assert not is_retryable_exception(exc)

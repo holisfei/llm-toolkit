@@ -27,7 +27,7 @@ dev = [
 python_version = "3.13"
 strict = true
 files = ["src", "tests"]
-mypy_path = "src"          # ← 加这行,告诉 mypy 优先从 src/ 找模块
+
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"   # 自动把 async def test_xxx 当 async 测试,不用每个加装饰器

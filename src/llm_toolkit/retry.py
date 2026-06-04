@@ -4,6 +4,8 @@ import httpx
 from loguru import logger
 from tenacity import AsyncRetrying, RetryCallState, retry_if_exception, stop_after_attempt, wait_exponential
 
+from llm_toolkit.exceptions import LLMRateLimitError, LLMServerError, LLMTimeoutError
+
 # 需要重试的错误码
 RETRYABLE_STATUS: list[int] = [
     429,        # rate limit
@@ -15,17 +17,14 @@ RETRYABLE_STATUS: list[int] = [
 ]
 
 def is_retryable_exception(exc: BaseException) -> bool:
-    """判断错误是否需要重试"""
-    if isinstance(exc, httpx.TransportError): 
-        # httpx.TimeoutException
-        # httpx.ConnectError
-        # httpx.RemoteProtocolError
+    """根据自定义的错误 判断错误是否需要重试"""
+    if isinstance(exc, (LLMRateLimitError, LLMServerError, LLMTimeoutError)): 
         return True
-    elif isinstance(exc, httpx.HTTPStatusError):
-        # status_code error
+    if isinstance(exc, httpx.TransportError):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code in RETRYABLE_STATUS
-    else:
-        return False
+    return False
     
 def _log_before_sleep(retry_state: RetryCallState) -> None:
     "重试日志"

@@ -23,12 +23,8 @@ class LLMError(Exception):
         if self.provider is not None:
             return f"[{self.provider}] {self.message}"
         return f"{self.message}"
-    
-# 配置输入错误
-class LLMConfigError(LLMError):
-    """缺 key、未知 model、参数非法等。"""
 
-# 请求错误
+# 请求错误(带status_code) 基类
 class LLMRequestError(LLMError):
     """请求本身的错——400/422/context too long 等。"""
     def __init__(
@@ -42,22 +38,18 @@ class LLMRequestError(LLMError):
         super().__init__(message, provider=provider, cause=cause)
         self.status_code = status_code
 
+
+# 不需要重试的错误
+
+class LLMConfigError(LLMError):
+    """缺 key、未知 model、参数非法等。"""
+
 class LLMAuthError(LLMRequestError):
     """401/403 — key 错、权限不够。"""
 
 class LLMBadRequestError(LLMRequestError):
     """400/422 — 请求体本身有问题(参数错、context 超长等)。"""
 
-class LLMRateLimitError(LLMRequestError):
-    """429 — 调用频率超限。"""
-
-class LLMServerError(LLMRequestError):
-    """5xx/529 — 服务端临时崩溃。"""
-
-class LLMTimeoutError(LLMError):
-    """网络超时 / asyncio 墙钟超时 —— 不带 status_code,但带 provider。"""
-
-# 响应错误
 class LLMResponseError(LLMError):
     """响应不符合预期 —— JSON 解析失败 / 关键字段缺失。"""
     def __init__(
@@ -70,3 +62,14 @@ class LLMResponseError(LLMError):
     ):
         super().__init__(message, provider=provider, cause=cause)
         self.raw_body = raw_body
+
+# 需要重试的错误
+
+class LLMRateLimitError(LLMRequestError):
+    """429 — 调用频率超限。"""
+
+class LLMServerError(LLMRequestError):
+    """5xx/529 — 服务端临时崩溃。"""
+
+class LLMTimeoutError(LLMError):
+    """网络超时 / asyncio 墙钟超时 —— 不带 status_code,但带 provider。"""

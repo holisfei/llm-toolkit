@@ -5,13 +5,19 @@ from typing import Any
 
 import httpx
 
-from llm_toolkit.providers.base import BaseProvider, generate_params
+from llm_toolkit.exceptions import (
+    LLMResponseError,
+    LLMServerError,
+    LLMTimeoutError,
+)
+from llm_toolkit.providers.base import BaseProvider, generate_params, translate_http_error
 from llm_toolkit.retry import make_retrying
 from llm_toolkit.streaming import parse_openai_sse
 from llm_toolkit.types import ChatResponse, LLMUrl, Message, Usage
 
 
 class DeepSeekProvider(BaseProvider):
+    name = "deepseek"
 
     def __init__(self, api_key: str | None = None, env_name: str = ""):
         super().__init__(api_key, env_name)
@@ -27,30 +33,50 @@ class DeepSeekProvider(BaseProvider):
             # └─────────────────────────────────────────────────
             async for attempt in make_retrying():
                 with attempt:
-                    response = await client.post(url=self.url, json=params)
-                    response.raise_for_status()
-                    # ┌──── 关键决策 2:JSON 解析 + 翻译 也放 with attempt 里 ────
-                    # │ JSON 解析失败(JSONDecodeError)不重试(你决策表里 False)
-                    # │ 但它仍然要从 with 块向外冒出去——所以放在 with 里
-                    # │ tenacity 看到这个异常,is_retryable→False,reraise 出来
-                    # │ 调用方拿到一个清晰的 JSONDecodeError,而不是莫名其妙的"重试 3 次"
-                    # └────────────────────────────────────────────────────
-                    res_json = response.json()
+                    try: # try 捕获自定义的错误类型
+                        response = await client.post(url=self.url, json=params)
+                        response.raise_for_status()
+                        # ┌──── 关键决策 2:JSON 解析 + 翻译 也放 with attempt 里 ────
+                        # │ JSON 解析失败(JSONDecodeError)不重试(你决策表里 False)
+                        # │ 但它仍然要从 with 块向外冒出去——所以放在 with 里
+                        # │ tenacity 看到这个异常,is_retryable→False,reraise 出来
+                        # │ 调用方拿到一个清晰的 JSONDecodeError,而不是莫名其妙的"重试 3 次"
+                        # └────────────────────────────────────────────────────
+                        res_json = response.json()
 
-                    message: dict[str, Any] = res_json["choices"][0]["message"]
-                    usage: dict[str, Any] = res_json["usage"]
-                    res = ChatResponse(
-                        content=message["content"],
-                        usage=Usage(
-                            input_tokens=usage["prompt_tokens"], 
-                            output_tokens=usage["completion_tokens"], 
-                            cached_tokens=usage.get("prompt_cache_hit_tokens", 0) # get安全取值
-                        ),
-                        model=res_json["model"],
-                        raw=res_json
-                    )
-                    return res # 返回的时候会退出重试
-            
+                        message: dict[str, Any] = res_json["choices"][0]["message"]
+                        usage: dict[str, Any] = res_json["usage"]
+                        res = ChatResponse(
+                            content=message["content"],
+                            usage=Usage(
+                                input_tokens=usage["prompt_tokens"], 
+                                output_tokens=usage["completion_tokens"], 
+                                cached_tokens=usage.get("prompt_cache_hit_tokens", 0) # get安全取值
+                            ),
+                            model=res_json["model"],
+                            raw=res_json
+                        )
+                        return res # 返回的时候会退出重试
+                    except httpx.HTTPStatusError as e:
+                        raise translate_http_error(e=e, provider=self.name) from e
+                    except httpx.TimeoutException as e:
+                        raise LLMTimeoutError(
+                             f"request timeout: {e}",
+                            provider=self.name,
+                        ) from e
+                    except httpx.TransportError as e:
+                        raise LLMServerError(
+                            f"transport error: {e}",
+                            provider=self.name,
+                        ) from e
+                    except (KeyError, ValueError) as e:
+                        raise LLMResponseError(
+                            f"failed to parse response: {type(e).__name__}: {e}",
+                            raw_body=response.text if 'response' in locals() else None,
+                            provider=self.name,
+                        ) from e
+                    # from e 的作用，自动设置 __cause__
+                                
         # ┌────────── 关键决策 3:这行 raise unreachable ──────────
         # │ 因为 reraise=True,上面循环要么 return 要么向外抛异常
         # │ 物理上走不到这一行。但 mypy strict 要求所有路径有返回值
@@ -68,9 +94,3 @@ class DeepSeekProvider(BaseProvider):
                 response.raise_for_status()
                 async for text in parse_openai_sse(response.aiter_lines()):
                     yield text
-
-
-
-
-        
-            
