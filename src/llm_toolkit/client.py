@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 
+from llm_toolkit.exceptions import LLMTimeoutError
 from llm_toolkit.providers.anthropic import AnthropicProvider
 from llm_toolkit.providers.base import BaseProvider
 from llm_toolkit.providers.deepseek import DeepSeekProvider
@@ -32,7 +34,11 @@ class LLM:
         
         self.provider: BaseProvider = temp_provider
     
-    async def chat(self, messages: list[Message] | str) -> ChatResponse:
+    async def chat(
+        self,
+        messages: list[Message] | str, 
+        wait_timeout: float | None = None
+    ) -> ChatResponse:
         msgs: list[Message] = []
         if isinstance(messages, str):
             if len(messages) == 0:
@@ -41,8 +47,20 @@ class LLM:
         else:
             msgs = messages
 
-        response = await self.provider.chat(messages=msgs, model=self.model)
-        return response
+        provider_coro = self.provider.chat(messages=msgs, model=self.model)
+
+        if wait_timeout is None:
+            return await provider_coro
+        
+        # 协程超时，和provider的请求超时区分开
+        # 此处协程超时不重试
+        try:
+            return await asyncio.wait_for(provider_coro, timeout=wait_timeout)
+        except TimeoutError as e:
+            raise LLMTimeoutError(
+                f"call exceeded wall-clock timeout of {wait_timeout}s",
+                provider=self.provider.name,
+            ) from e
     
     async def stream_chat(self, messages: list[Message] | str) -> AsyncIterator[str]:
         msgs: list[Message] = []
