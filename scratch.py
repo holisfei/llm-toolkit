@@ -1,10 +1,9 @@
 import asyncio
 
 from llm_toolkit.client import LLM
-from llm_toolkit.types import Message, Role
-
 from llm_toolkit.cost import compute_cost
-from llm_toolkit.types import Usage
+from llm_toolkit.types import Message, Role, Usage
+
 
 async def main() -> None:
 
@@ -13,7 +12,7 @@ async def main() -> None:
     model_glm = "glm-4.7"
     model_qwen = "qwen3.5-plus-2026-02-15"
 
-    question = "一句话说明你是谁"
+    question = "电影 孤独的生还者"
     msgs: list[Message] = [Message(role=Role.USER, content=question)]
 
     print(f"\n{'='*50}\n输出:\n{'='*50}")
@@ -22,10 +21,7 @@ async def main() -> None:
 
     res = await llm.chat(messages=msgs)
     print(res.content)
-
-    # 1M input + 1M output @ Sonnet 4.6 = $3 + $15 = $18
-    cost = compute_cost(Usage(input_tokens=1_000_000, output_tokens=1_000_000), "claude-sonnet-4-6")
-    print(cost.total_usd)   # 期望 18.0
+    print(llm.cost_tracker.summary())
     
     # full = ""
     # async for chunk in llm.stream_chat(messages=msgs):

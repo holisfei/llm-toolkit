@@ -6,7 +6,7 @@ from datetime import date
 
 from pydantic import BaseModel
 
-from llm_toolkit.types import Usage
+from llm_toolkit.types import Cost, Usage
 
 
 class ModelPrice(BaseModel):
@@ -16,19 +16,6 @@ class ModelPrice(BaseModel):
     output_per_mtok: float                      # 输出
     cached_input_per_mtok: float = 0.0          # 命中缓存的输入(默认 0 表示不收录或不区分)
     last_verified: date                         # 价格核实日期,警示提醒
-
-class Cost(BaseModel):
-    """单次调用的成本细分。所有金额单位:美元。"""
-    input_usd: float
-    output_usd: float
-    cached_usd: float
-
-    @property
-    def total_usd(self) -> float:
-        return self.input_usd + self.output_usd + self.cached_usd
-
-    def __str__(self) -> str:
-        return f"${self.total_usd:.4f}"
 
 # ─── 具体的model对应的单价
 

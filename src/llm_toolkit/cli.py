@@ -82,6 +82,7 @@ async def _chat_loop(model: str, system: str | None) -> None:
                 continue
             # 3.3 处理退出命令:输入是 "/exit" 就 break
             if input_text == "/exit":
+                console.print(f"[dim]{llm.cost_tracker.summary()}[/]")
                 console.print("\n[dim]再见![/]")
                 break
             # 3.4 把用户输入 append 成 USER message 到 history
@@ -96,6 +97,7 @@ async def _chat_loop(model: str, system: str | None) -> None:
             # 3.6 把完整回复 append 成 ASSISTANT message 到 history
             messages.append(Message(role=Role.ASSISTANT, content=full_reply))
         except (EOFError, KeyboardInterrupt): # Ctrl-D/Ctrl-C(EOF)
+            console.print(f"[dim]{llm.cost_tracker.summary()}[/]")
             console.print("\n[dim]再见![/]")
             break
 

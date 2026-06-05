@@ -4,13 +4,12 @@ import pytest
 
 from llm_toolkit.cost import (
     MODEL_PRICING_MAP,
-    Cost,
     CostTracker,
     ModelPrice,
     compute_cost,
     get_pricing,
 )
-from llm_toolkit.types import Usage
+from llm_toolkit.types import Cost, Usage
 
 
 @pytest.fixture
