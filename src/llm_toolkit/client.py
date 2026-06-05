@@ -83,6 +83,7 @@ class LLM:
                 provider=self.provider.name,
             ) from e
     
+    # TODO: 1.成本统计；2.重试逻辑 
     async def stream_chat(self, messages: list[Message] | str) -> AsyncIterator[str]:
         msgs: list[Message] = []
         if isinstance(messages, str):
