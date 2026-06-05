@@ -9,7 +9,10 @@ from loguru import logger
 from llm_toolkit.types import Usage
 
 
-async def parse_openai_sse(lines: AsyncIterator[str]) -> AsyncIterator[str]:
+async def parse_openai_sse(
+     lines: AsyncIterator[str], 
+     usage_out: list[Usage] | None = None
+) -> AsyncIterator[str]:
      async for line in lines:
           if not line or not line.strip():
                continue
@@ -34,7 +37,9 @@ async def parse_openai_sse(lines: AsyncIterator[str]) -> AsyncIterator[str]:
                     cached_tokens=cache_tokens,
                )
                logger.debug(str(cost))
-               
+               # out 参数，交给上层
+               if usage_out is not None:
+                    usage_out.append(cost)
                continue
 
           if len(choices_list) == 0:
@@ -49,7 +54,10 @@ async def parse_openai_sse(lines: AsyncIterator[str]) -> AsyncIterator[str]:
 
           yield content
 
-async def parse_anthropic_sse(lines: AsyncIterator[str]) -> AsyncIterator[str]:
+async def parse_anthropic_sse(
+     lines: AsyncIterator[str],
+     usage_out: list[Usage] | None = None
+) -> AsyncIterator[str]:
      async for line in lines:
           if not line or not line.strip():
                continue
@@ -69,6 +77,10 @@ async def parse_anthropic_sse(lines: AsyncIterator[str]) -> AsyncIterator[str]:
                     cached_tokens=cache_tokens,
                )
                logger.debug(str(cost))
+               # out 参数，交给上层
+               if usage_out is not None:
+                    usage_out.append(cost)
+               continue
           
           event: str = data.get("type", "")
           if event != "content_block_delta":

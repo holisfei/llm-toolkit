@@ -83,12 +83,17 @@ class AnthropicProvider(BaseProvider):
                     # from e 的作用，自动设置 __cause__
         raise RuntimeError("重试循环已用尽且无返回结果——无法访问。")
     
-    async def stream_chat(self, messages: list[Message], model: str) -> AsyncIterator[str]:
+    async def stream_chat(
+        self, 
+        messages: list[Message], 
+        model: str,
+        _usage_out: list[Usage] | None = None
+    ) -> AsyncIterator[str]:
         params = generate_params(messages=messages, model=model, stream=True)
         params["max_tokens"] = 2048
 
         async with httpx.AsyncClient(headers=self.headers, timeout=self.timeout) as client:
             async with client.stream("POST", url=self.url, json=params) as response:
                 response.raise_for_status()
-                async for text in parse_anthropic_sse(response.aiter_lines()):
+                async for text in parse_anthropic_sse(response.aiter_lines(), usage_out=_usage_out):
                     yield text

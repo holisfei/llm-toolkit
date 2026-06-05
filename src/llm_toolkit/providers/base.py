@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 # from loguru import logger
 from llm_toolkit.exceptions import LLMAuthError, LLMBadRequestError, LLMRateLimitError, LLMRequestError, LLMServerError
-from llm_toolkit.types import ChatResponse, Message
+from llm_toolkit.types import ChatResponse, Message, Usage
 
 load_dotenv()
 
@@ -40,7 +40,7 @@ class BaseProvider(ABC):
         """非流式对话。在各个子类里实现。"""
     
     @abstractmethod
-    def stream_chat(self, messages: list[Message], model: str) -> AsyncIterator[str]:
+    def stream_chat(self, messages: list[Message], model: str, _usage_out: list[Usage] | None = None) -> AsyncIterator[str]:
         """流式对话。在各个子类里实现。"""
 
 # 辅助方法

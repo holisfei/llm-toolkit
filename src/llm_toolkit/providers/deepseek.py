@@ -85,12 +85,17 @@ class DeepSeekProvider(BaseProvider):
         raise RuntimeError("重试循环已用尽且无返回结果——无法访问。")
     
 
-    async def stream_chat(self, messages: list[Message], model: str) -> AsyncIterator[str]:
+    async def stream_chat(
+        self, 
+        messages: list[Message], 
+        model: str,
+        _usage_out: list[Usage] | None = None
+    ) -> AsyncIterator[str]:
         stream_options = {"stream_options": {"include_usage": True}}
         params = generate_params(messages=messages, model=model, stream=True, extra=stream_options)
 
         async with httpx.AsyncClient(headers=self.headers, timeout=self.timeout) as client:
             async with client.stream("POST", url=self.url, json=params) as response:
                 response.raise_for_status()
-                async for text in parse_openai_sse(response.aiter_lines()):
+                async for text in parse_openai_sse(response.aiter_lines(), usage_out=_usage_out):
                     yield text

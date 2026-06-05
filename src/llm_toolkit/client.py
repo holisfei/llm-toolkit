@@ -13,7 +13,7 @@ from llm_toolkit.providers.base import BaseProvider
 from llm_toolkit.providers.deepseek import DeepSeekProvider
 from llm_toolkit.providers.glm import GlmProvider
 from llm_toolkit.providers.qwen import QwenProvider
-from llm_toolkit.types import ChatResponse, Cost, EnvApiKeyName, Message, Role
+from llm_toolkit.types import ChatResponse, Cost, EnvApiKeyName, Message, Role, Usage
 
 model_provider: dict[str, BaseProvider] = {
     "claude": AnthropicProvider(env_name=EnvApiKeyName.ANTHROPIC_API_KEY),
@@ -48,6 +48,8 @@ class LLM:
         
         self.provider: BaseProvider = temp_provider
     
+# ========== helper ==========
+
     def _post_process(self, response: ChatResponse, cache_key: str | None) -> ChatResponse:
         """请求成功后:算 cost、累加 tracker、写 cache。两条分支共用。"""
         cost = cost_add(response)
@@ -56,12 +58,8 @@ class LLM:
         if self._cache is not None and cache_key is not None:
             self._cache.set(cache_key, response)
         return response
-
-    async def chat(
-        self,
-        messages: list[Message] | str, 
-        wait_timeout: float | None = None
-    ) -> ChatResponse:
+    
+    def _normalize(self, messages: list[Message] | str) -> list[Message]:
         msgs: list[Message] = []
         if isinstance(messages, str):
             if len(messages) == 0:
@@ -69,8 +67,18 @@ class LLM:
             msgs.append(Message(role=Role.USER, content=messages))
         else:
             msgs = messages
+        return msgs
 
-        # 不调用 LLM api，使用cache
+# ========== chat ==========
+
+    async def chat(
+        self,
+        messages: list[Message] | str, 
+        wait_timeout: float | None = None
+    ) -> ChatResponse:
+        msgs: list[Message] = self._normalize(messages)
+
+        # cache命中 不调用 LLM api
         cache_key: str | None = None
         if self._cache is not None:
             cache_key = RequestCache.make_key(self.model, msgs)
@@ -82,12 +90,12 @@ class LLM:
         # 调用 LLM api
         provider_coro = self.provider.chat(messages=msgs, model=self.model)
 
+        # 没有协程超时
         if wait_timeout is None:
             response = await provider_coro
             return self._post_process(response=response, cache_key=cache_key)
         
-        # 协程超时，和provider的请求超时区分开
-        # 此处协程超时不重试
+        # 有协程超时，和provider的请求超时区分开，协程超时不需要重试
         try:
             res: ChatResponse = await asyncio.wait_for(provider_coro, timeout=wait_timeout)
             return self._post_process(response=res, cache_key=cache_key)
@@ -96,15 +104,46 @@ class LLM:
                 f"call exceeded wall-clock timeout of {wait_timeout}s",
                 provider=self.provider.name,
             ) from e
+
     
-    # TODO: 1.成本统计；2.重试逻辑 
+    # TODO: 重试逻辑 
     async def stream_chat(self, messages: list[Message] | str) -> AsyncIterator[str]:
-        msgs: list[Message] = []
-        if isinstance(messages, str):
-            if len(messages) == 0:
-                raise ValueError("内容不能为空")
-            msgs.append(Message(role=Role.USER, content=messages))
-        else:
-            msgs = messages
-        async for chunk in self.provider.stream_chat(messages=msgs, model=self.model):
+        msgs: list[Message] = self._normalize(messages)
+        
+        # usage_holder 层层透传，最终在流结束后拿结果
+        usage_holder: list[Usage] = []
+        
+        # 请求 LLM Api
+        async for chunk in self.provider.stream_chat(messages=msgs, model=self.model, _usage_out=usage_holder):
             yield chunk
+        
+        # 计算本轮对话的成本
+        if usage_holder:
+            usage = usage_holder[0]
+            cost = compute_cost(usage, self.model)
+            self.cost_tracker.add(usage=usage, cost=cost)
+        if not usage_holder:
+            logger.warning("stream ended without usage")
+
+# ========== 并发 chat ==========
+
+    async def batch_chat(
+        self,
+        batch_messages: list[list[Message] | str], 
+        concurrency: int = 5,
+        wait_timeout: float | None = None
+    ) -> list[ChatResponse | BaseException]:
+        semaphore = asyncio.Semaphore(concurrency)
+        async def _bounded_chat(messages: list[Message] | str) -> ChatResponse:
+            async with semaphore:
+                return await self.chat(messages=messages, wait_timeout=wait_timeout)
+            
+        results: list[ChatResponse | BaseException] = await asyncio.gather(
+            *[_bounded_chat(msgs) for msgs in batch_messages],
+            return_exceptions=True
+        )
+        return results
+            
+            
+
+
