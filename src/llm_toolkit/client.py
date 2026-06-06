@@ -12,6 +12,7 @@ from llm_toolkit.providers.anthropic import AnthropicProvider
 from llm_toolkit.providers.base import BaseProvider
 from llm_toolkit.providers.deepseek import DeepSeekProvider
 from llm_toolkit.providers.glm import GlmProvider
+from llm_toolkit.providers.litellm import LiteLLMProvider
 from llm_toolkit.providers.qwen import QwenProvider
 from llm_toolkit.types import ChatResponse, Cost, EnvApiKeyName, Message, Role, Usage
 
@@ -19,11 +20,12 @@ model_provider: dict[str, BaseProvider] = {
     "claude": AnthropicProvider(env_name=EnvApiKeyName.ANTHROPIC_API_KEY),
     "deepseek": DeepSeekProvider(env_name=EnvApiKeyName.DEEPSEEK_API_KEY),
     "glm": GlmProvider(env_name=EnvApiKeyName.ZAI_API_KEY),
-    "qwen": QwenProvider(env_name=EnvApiKeyName.DASHSCOPE_API_KEY)
+    "qwen": QwenProvider(env_name=EnvApiKeyName.DASHSCOPE_API_KEY),
+    "litellm": LiteLLMProvider()
 }
 
 def cost_add(resp: ChatResponse) -> Cost | None:
-    # 计算单词会话成本
+    # 计算单次会话成本
     cost = compute_cost(usage=resp.usage, model=resp.model)
     if cost is None:
         logger.warning(f"模型 {resp.model} 不在价格表,cost 未计算")
