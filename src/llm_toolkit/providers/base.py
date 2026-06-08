@@ -64,7 +64,7 @@ def generate_params(
 def translate_http_error(e: httpx.HTTPStatusError, provider: str) -> LLMRequestError:
     """根据 HTTP 状态码翻译成对应的 LLM 异常子类。"""
     status = e.response.status_code
-    raw = e.response.text
+    # raw = e.response.text
     
     if status in (401, 403):
         return LLMAuthError(
@@ -83,6 +83,6 @@ def translate_http_error(e: httpx.HTTPStatusError, provider: str) -> LLMRequestE
         )
     # 400/422 等其它 4xx
     return LLMBadRequestError(
-        f"bad request: HTTP {status}: {raw[:200]}",
+        f"bad request: HTTP {status}",
         status_code=status, provider=provider, cause=e,
     )

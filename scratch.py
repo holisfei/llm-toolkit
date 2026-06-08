@@ -13,7 +13,7 @@ async def main() -> None:
     model_qwen = "qwen3.5-plus-2026-02-15"
     model_litellm = "litellm/deepseek/deepseek-chat"
 
-    question = "电影 孤独的生还者"
+    question = "简述LLM原理"
     msgs: list[Message] = [Message(role=Role.USER, content=question)]
 
     llm = LLM(model_litellm)
@@ -48,7 +48,7 @@ async def main() -> None:
     print(resp.content)
     print(f"input={resp.usage.input_tokens}, output={resp.usage.output_tokens}")
 
-    # llm2 = LLM("litellm/anthropic/claude-haiku-4-5")
+    llm2 = LLM("litellm/anthropic/claude-haiku-4-5")
     print(f"\n{'='*50}\n llmlite stream 输出:\n{'='*50}")
     async for chunk in llm.stream_chat("用三句话讲讲 Python 的 GIL"):
         print(chunk, end="", flush=True)

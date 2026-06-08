@@ -91,9 +91,22 @@ class AnthropicProvider(BaseProvider):
     ) -> AsyncIterator[str]:
         params = generate_params(messages=messages, model=model, stream=True)
         params["max_tokens"] = 2048
-
+        
         async with httpx.AsyncClient(headers=self.headers, timeout=self.timeout) as client:
-            async with client.stream("POST", url=self.url, json=params) as response:
-                response.raise_for_status()
-                async for text in parse_anthropic_sse(response.aiter_lines(), usage_out=_usage_out):
-                    yield text
+            try:
+                async with client.stream("POST", url=self.url, json=params) as response:
+                    response.raise_for_status()
+                    async for text in parse_anthropic_sse(response.aiter_lines(), usage_out=_usage_out):
+                        yield text
+            except httpx.HTTPStatusError as e:
+                raise translate_http_error(e=e, provider=self.name) from e
+            except httpx.TimeoutException as e:
+                raise LLMTimeoutError(
+                    f"stream timeout: {e}",
+                    provider=self.name,
+                ) from e
+            except httpx.TransportError as e:
+                raise LLMServerError(
+                    f"stream transport error: {e}",
+                    provider=self.name,
+                ) from e 

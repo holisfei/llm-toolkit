@@ -8,13 +8,17 @@
 
 - 统一抽象层:同一接口调用 `anthropic / deepseek / glm` 三家
 - `Pydantic v2` 类型完整, `mypy strict` 全绿
+- 失败重试，自定义翻译错误类型，按类型重试
+- 请求缓存，对于相同问题，不发起请求，使用缓存
+- 并发请求，同时并发请求多llm
+- 成本统计，token用量和美元，更直观感受成本
 - 流式输出(`SSE`),两家协议格式(`openai`系和`anthropic`系)统一处理
 - 交互式 `CLI`(多轮对话 / 流式打输出 / 优雅退出)
 - 单元测试覆盖 `SSE` 解析核心逻辑
 
 ## 支持的模型
 
-统计时间`2026-06-01`
+统计时间`2026-06`
 
 | Provider | 示例 model | 备注 |
 | --- | --- | --- |
@@ -71,21 +75,36 @@ uv run llm-toolkit chat -m claude-sonnet-4-6 -s "你是一个文言文助手"
 ## 项目结构
 
 ```
-src
-└── llm_toolkit
-    ├── __init__.py
-    ├── cli.py
-    ├── client.py
-    ├── providers
-    │   ├── __init__.py
-    │   ├── anthropic.py
-    │   ├── base.py
-    │   ├── deepseek.py
-    │   └── glm.py
-    ├── streaming.py
-    └── types.py
-tests
-└── test_streaming.py
+├── src
+│   └── llm_toolkit
+│       ├── providers
+│       │   ├── __init__.py
+│       │   ├── anthropic.py
+│       │   ├── base.py
+│       │   ├── deepseek.py
+│       │   ├── glm.py
+│       │   └── litellm.py
+│       ├── __init__.py
+│       ├── cache.py
+│       ├── cli.py
+│       ├── client.py
+│       ├── cost.py
+│       ├── exceptions.py
+│       ├── retry.py
+│       ├── streaming.py
+│       └── types.py
+├── tests
+│   ├── test_batch.py
+│   ├── test_cache_integration.py
+│   ├── test_cache.py
+│   ├── test_client_timeout.py
+│   ├── test_cost_integration.py
+│   ├── test_cost.py
+│   ├── test_exceptions_translation.py
+│   ├── test_exceptions.py
+│   ├── test_retry_integration.py
+│   ├── test_retry.py
+│   └── test_streaming.py
 ```
 
 ## 开发
@@ -95,14 +114,6 @@ uv run ruff check src/ tests/
 uv run mypy src/ tests/
 uv run pytest tests/ -v -s
 ```
-
-## Roadmap
-
-- [ ] 重试策略(指数退避)
-- [ ] Token 计数 + 成本统计
-- [ ] 请求缓存
-- [ ] 并发批量调用
-- [ ] LiteLLM 集成对比
 
 ## License
 
