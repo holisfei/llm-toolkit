@@ -9,55 +9,10 @@ from loguru import logger
 from llm_toolkit.types import Usage
 
 
-async def parse_openai_sse(
-     lines: AsyncIterator[str], 
-     usage_out: list[Usage] | None = None
-) -> AsyncIterator[str]:
-     async for line in lines:
-          if not line or not line.strip():
-               continue
-          if not line.startswith("data: "):
-               continue
-          if line.startswith("data: [DONE]"):
-               return
-
-          res = line.replace("data: ", "", 1).strip()
-          data: dict[str, Any] = json.loads(res)
-
-          usage: dict[str, Any] = data.get("usage", {})
-          choices_list: list[dict[str, Any]] = data.get("choices", [])
-
-          if usage is not None and len(usage) > 0:
-               input_tokens: int = usage.get("prompt_tokens", 0)
-               output_tokens: int = usage.get("completion_tokens", 0)
-               cache_tokens: int = usage.get("prompt_cache_hit_tokens", 0)
-               cost = Usage(
-                    input_tokens=input_tokens, 
-                    output_tokens=output_tokens, 
-                    cached_tokens=cache_tokens,
-               )
-               logger.debug(str(cost))
-               # out 参数，交给上层
-               if usage_out is not None:
-                    usage_out.append(cost)
-               continue
-
-          if len(choices_list) == 0:
-               continue
-          choices: dict[str, Any] = choices_list[0]
-
-          delta: dict[str, Any] = choices.get("delta", {})
-          content: str | None = delta.get("content", None)
-          
-          if content is None:
-               continue
-
-          yield content
-
 async def parse_anthropic_sse(
      lines: AsyncIterator[str],
      usage_out: list[Usage] | None = None
-) -> AsyncIterator[str]:
+) -> AsyncIterator[dict[str, Any]]:
      async for line in lines:
           if not line or not line.strip():
                continue
@@ -65,6 +20,22 @@ async def parse_anthropic_sse(
                continue
           res = line.replace("data: ", "", 1).strip()
           data: dict[str, Any] = json.loads(res)
+
+          event_type: str = data.get("type", "")
+          if event_type == "ping":
+               continue
+          if event_type == "message_start":
+               continue
+          # print(line)
+
+          delta: dict[str, Any] = data.get("delta", {})
+          delta_type: str = delta.get("type", "")
+          text: str = delta.get("text", "")
+          if delta_type == "text_delta" and len(text) == 0:
+               continue
+
+          if len(data) == 0:
+               continue
 
           usage: dict[str, Any] | None = data.get("usage", None)
           if usage is not None and len(usage) > 0:
@@ -76,28 +47,58 @@ async def parse_anthropic_sse(
                     output_tokens=output_tokens, 
                     cached_tokens=cache_tokens,
                )
-               logger.debug(str(cost))
+               print()
+               logger.debug(f"本次 stream 消耗token {str(cost)}")
                # out 参数，交给上层
                if usage_out is not None:
                     usage_out.append(cost)
-               continue
           
-          event: str = data.get("type", "")
-          if event != "content_block_delta":
-               continue
-          
-          delta: dict[str, Any] = data.get("delta", {})
-          delta_type: str = delta.get("type", "")
-          if delta_type != "text_delta":
-               continue
-          
-          text: str = delta.get("text", "")
+          yield data
 
-          if not text:
+async def parse_openai_sse(
+     lines: AsyncIterator[str], 
+     usage_out: list[Usage] | None = None
+) -> AsyncIterator[dict[str, Any]]:
+     async for line in lines:
+          if not line or not line.strip():
+               continue
+          if not line.startswith("data: "):
+               continue
+          if line.startswith("data: [DONE]"):
+               return
+
+          # print(line)
+
+          res = line.replace("data: ", "", 1).strip()
+          data: dict[str, Any] = json.loads(res)
+
+          usage: dict[str, Any] = data.get("usage", {})
+          choices_list: list[dict[str, Any]] = data.get("choices", [])
+
+          if len(choices_list) == 0:
                continue
 
-          yield text
+          choices: dict[str, Any] = choices_list[0]
+          delta: dict[str, Any] = choices.get("delta", {})
+          content: str | None = delta.get("reasoning_content", None) # 思考过程
+          if content is not None:
+               continue
 
+          if usage is not None and len(usage) > 0:
+               input_tokens: int = usage.get("prompt_tokens", 0)
+               output_tokens: int = usage.get("completion_tokens", 0)
+               cache_tokens: int = usage.get("prompt_cache_hit_tokens", 0)
+               cost = Usage(
+                    input_tokens=input_tokens, 
+                    output_tokens=output_tokens, 
+                    cached_tokens=cache_tokens,
+               )
+               logger.debug(f"本次 stream 消耗token {str(cost)}")
+               # out 参数，交给上层
+               if usage_out is not None:
+                    usage_out.append(cost)
+
+          yield data
 
 
 

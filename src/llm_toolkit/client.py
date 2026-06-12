@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from typing import Any
 
 from loguru import logger
 
@@ -13,14 +14,12 @@ from llm_toolkit.providers.base import BaseProvider
 from llm_toolkit.providers.deepseek import DeepSeekProvider
 from llm_toolkit.providers.glm import GlmProvider
 from llm_toolkit.providers.litellm import LiteLLMProvider
-from llm_toolkit.providers.qwen import QwenProvider
-from llm_toolkit.types import ChatResponse, Cost, EnvApiKeyName, Message, Role, Usage
+from llm_toolkit.types import ChatResponse, Cost, EnvApiKeyName, Message, Role, StreamChunk, ToolResult, Usage
 
 model_provider: dict[str, BaseProvider] = {
     "claude": AnthropicProvider(env_name=EnvApiKeyName.ANTHROPIC_API_KEY),
     "deepseek": DeepSeekProvider(env_name=EnvApiKeyName.DEEPSEEK_API_KEY),
     "glm": GlmProvider(env_name=EnvApiKeyName.ZAI_API_KEY),
-    "qwen": QwenProvider(env_name=EnvApiKeyName.DASHSCOPE_API_KEY),
     "litellm": LiteLLMProvider()
 }
 
@@ -76,6 +75,7 @@ class LLM:
     async def chat(
         self,
         messages: list[Message] | str, 
+        tools: list[dict[str, Any]] | None = None,
         wait_timeout: float | None = None
     ) -> ChatResponse:
         msgs: list[Message] = self._normalize(messages)
@@ -90,7 +90,7 @@ class LLM:
                 return cached    # 命中:直接返回,不累加 tracker,不算 cost
 
         # 调用 LLM api
-        provider_coro = self.provider.chat(messages=msgs, model=self.model)
+        provider_coro = self.provider.chat(messages=msgs, tools=tools, model=self.model)
 
         # 没有协程超时
         if wait_timeout is None:
@@ -107,16 +107,19 @@ class LLM:
                 provider=self.provider.name,
             ) from e
 
-    
     # TODO: 重试逻辑 
-    async def stream_chat(self, messages: list[Message] | str) -> AsyncIterator[str]:
+    async def stream_chat(
+        self,
+        messages: list[Message] | str,
+        tools: list[dict[str, Any]] | None = None,
+    ) -> AsyncIterator[StreamChunk]:
         msgs: list[Message] = self._normalize(messages)
         
         # usage_holder 层层透传，最终在流结束后拿结果
         usage_holder: list[Usage] = []
         
         # 请求 LLM Api
-        async for chunk in self.provider.stream_chat(messages=msgs, model=self.model, _usage_out=usage_holder):
+        async for chunk in self.provider.stream_chat(messages=msgs, model=self.model, tools=tools, _usage_out=usage_holder):
             yield chunk
         
         # 计算本轮对话的成本
@@ -125,7 +128,23 @@ class LLM:
             cost = compute_cost(usage, self.model)
             self.cost_tracker.add(usage=usage, cost=cost)
         if not usage_holder:
-            logger.warning("stream ended without usage")
+            logger.warning("结束会话 没有 usage 信息")
+
+    def append_tool_round(
+        self, 
+        res: ChatResponse, 
+        messages: list[Message], 
+        tool_results: list[ToolResult]
+    ) -> None:
+        self.provider.append_tool_round(res=res, messages=messages, tool_results=tool_results)
+
+    def append_tool_round_stream(
+        self, 
+        messages: list[Message], 
+        tool_results: list[ToolResult],
+        content: Any
+    ) -> None:
+        self.provider.append_tool_round_stream(messages=messages, tool_results=tool_results, content=content)
 
 # ========== 并发 chat ==========
 

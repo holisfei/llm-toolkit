@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 # from loguru import logger
 from llm_toolkit.exceptions import LLMAuthError, LLMBadRequestError, LLMRateLimitError, LLMRequestError, LLMServerError
-from llm_toolkit.types import ChatResponse, Message, Usage
+from llm_toolkit.types import ChatResponse, Message, StreamChunk, Tool, ToolResult, Usage
 
 load_dotenv()
 
@@ -36,12 +36,20 @@ class BaseProvider(ABC):
         self.timeout = httpx.Timeout(connect=30, read=60, write=60, pool=60)
         
     @abstractmethod
-    async def chat(self, messages: list[Message], model: str) -> ChatResponse:
+    async def chat(self, messages: list[Message], tools: list[Tool] | None, model: str) -> ChatResponse:
         """非流式对话。在各个子类里实现。"""
     
     @abstractmethod
-    def stream_chat(self, messages: list[Message], model: str, _usage_out: list[Usage] | None = None) -> AsyncIterator[str]:
+    def stream_chat(self, messages: list[Message], model: str, tools: list[Tool] | None, _usage_out: list[Usage] | None = None) -> AsyncIterator[StreamChunk]:
         """流式对话。在各个子类里实现。"""
+
+    @abstractmethod
+    def append_tool_round(self, res: ChatResponse, messages: list[Message], tool_results: list[ToolResult]) -> None:
+        """输入统一的 res1 + results,内部按自己是哪家 provider 拼好 messages"""
+    
+    @abstractmethod
+    def append_tool_round_stream(self, messages: list[Message], tool_results: list[ToolResult], content: Any) -> None:
+         """输入统一的 stream + results,内部按自己是哪家 provider 拼好 messages"""
 
 # 辅助方法
 
@@ -53,7 +61,7 @@ def generate_params(
 ) -> dict[str, Any]:
     params: dict[str, Any] = {
         "model": model,
-        "messages": [m.model_dump(mode="json") for m in messages],
+        "messages": [m.model_dump(mode="json", exclude_none=True) for m in messages],
         "stream": stream
     }
     if extra is not None:

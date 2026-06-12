@@ -7,7 +7,8 @@ from litellm import ModelResponse
 from litellm import Usage as liteUsage
 
 from llm_toolkit.providers.base import BaseProvider
-from llm_toolkit.types import ChatResponse, Message, Usage
+from llm_toolkit.stream_toolcall import StreamAccumulator
+from llm_toolkit.types import ChatResponse, Message, StreamChunk, Tool, ToolResult, Usage
 
 
 class LiteLLMProvider(BaseProvider):
@@ -15,7 +16,7 @@ class LiteLLMProvider(BaseProvider):
     name = "litellm"
 
     def __init__(self, api_key: str | None = None, env_name: str = ""):
-        pass
+        self._stream_accumulator = StreamAccumulator()
 
     @staticmethod
     def _strip_litellm_prefix(model: str) -> str:
@@ -26,10 +27,19 @@ class LiteLLMProvider(BaseProvider):
             return model.removeprefix(prefix)
         return model
 
-    async def chat(self, messages: list[Message], model: str) -> ChatResponse:
+    async def chat(
+        self, 
+        messages: list[Message], 
+        tools: list[Tool] | None = None, 
+        model: str = ""
+    ) -> ChatResponse:
         message_list = [m.model_dump(mode="json") for m in messages]
         model_name = LiteLLMProvider._strip_litellm_prefix(model)
-        response: ModelResponse = await litellm.acompletion(model=model_name, messages=message_list)
+        response: ModelResponse = await litellm.acompletion(
+            model=model_name, 
+            messages=message_list,
+        )
+
         return ChatResponse(
             content=response.choices[0].message.content,
             usage=Usage(
@@ -41,7 +51,13 @@ class LiteLLMProvider(BaseProvider):
             raw=response.model_dump()
         )
 
-    async def stream_chat(self, messages: list[Message], model: str, _usage_out: list[Usage] | None = None) -> AsyncIterator[str]:
+    async def stream_chat(
+        self,
+        messages: list[Message], 
+        model: str, 
+        tools: list[Tool] | None,
+        _usage_out: list[Usage] | None = None
+    ) -> AsyncIterator[StreamChunk]:
         message_list = [m.model_dump(mode="json") for m in messages]
         model_name = LiteLLMProvider._strip_litellm_prefix(model)
         response: ModelResponse = await litellm.acompletion(
@@ -63,3 +79,18 @@ class LiteLLMProvider(BaseProvider):
                 continue
 
             yield content
+
+    def append_tool_round(
+        self, 
+        res: ChatResponse, 
+        messages: list[Message], 
+        tool_results: list[ToolResult]
+    ) -> None:
+        pass
+
+    def append_tool_round_stream(
+        self,
+        messages: list[Message], 
+        tool_results: list[ToolResult]
+    ) -> None:
+        pass
