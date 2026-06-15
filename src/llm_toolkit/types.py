@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import inspect
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, get_type_hints
 
 from pydantic import BaseModel, Field
 
@@ -73,6 +75,69 @@ class Tool:
     name: str
     description: str
     input_schema: dict[str, Any]
+    func: Callable[..., Any]
+    def run(self, arguments: dict[str, Any]) -> Any:
+        return self.func(**arguments)
+def tool(func: Callable[..., Any]) -> Tool:
+    """装饰器: 把一个普通函数变成 Tool.
+    从函数自动提取:
+    - name: 函数名
+    - description: docstring (第一行/整体, 你决定)
+    - input_schema: 从参数 + 类型注解生成 JSON Schema
+    """
+    # 1. 获取函数 name
+    name = func.__name__
+
+    # 2. 获取函数 description（从 docstring 的第一行）
+    description = ""
+    if func.__doc__:
+        description = func.__doc__.strip().split("\n")[0]
+
+    if len(description) == 0:
+        raise ValueError("函数缺少描述信息，请补全描述信息")
+
+    # 3. 获取函数签名信息
+    signature = inspect.signature(func)
+    # 获取函数参数和参数类型的映射
+    type_hints = get_type_hints(func)
+    
+    properties = {}
+    required_params = []
+    # 定义 python type 和 json_schema type 映射关系
+    json_type_map = {
+        str: "string", 
+        int: "integer", 
+        float: "number", 
+        bool: "boolean"
+    }
+
+    # 4. 遍历函数参数
+    for param_name, param in signature.parameters.items():
+        # 获取参数类型
+        py_type = type_hints.get(param_name, str)
+        
+        if py_type not in json_type_map:
+            raise ValueError(f"工具 {name} 的参数 {param_name} 类型 {py_type} 暂不支持")
+        
+        prop_scheme = {
+            "type": json_type_map.get(py_type, "string")
+        }
+        properties[param_name] = prop_scheme
+        # 如果参数值没有默认值，则任务是必填参数
+        if param.default is inspect.Parameter.empty:
+            required_params.append(param_name)
+    
+    input_schema = {
+        "type": "object",
+        "properties": properties,
+        "required": required_params
+    }
+    return Tool(
+        name=name, 
+        description=description, 
+        input_schema=input_schema, 
+        func=func
+    )
 
 
 @dataclass(frozen=True)

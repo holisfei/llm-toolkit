@@ -6,48 +6,28 @@ import json
 from loguru import logger
 
 from llm_toolkit.client import LLM, Message, Role
-from llm_toolkit.types import Tool, ToolCall, ToolResult
+from llm_toolkit.tool import dispatch
+from llm_toolkit.types import Tool, ToolCall, ToolResult, tool
 
-tools_claude : list[Tool] = [
-    Tool(
-        name="get_user_balance",
-        description="查询指定用户的账户余额(单位:元)",
-        input_schema={
-            "type": "object",
-            "properties": {
-                "username": {"type": "string", "description": "用户名"}
-            },
-            "required": ["username"]
-        }
-    ),
-]
 
-tools_openai: list[Tool] = [
-    Tool(
-        name="get_user_balance",
-        description="查询指定用户的账户余额(单位:元)",
-        input_schema={
-            "type": "object",
-            "properties":{
-                "username": {"type": "string", "description": "用户名"}
-            },
-            "required": ["username"]
-        }
-    ),
-]
+@tool # 装饰器返回了Tool对象
+def get_user_balance(username: str) -> str:
+    """查询指定用户的账户余额(单位:元)。
+    Args:
+        username: 用户名
+    """
+    return f"用户 {username} 的账户余额为 -999 元"
+@tool
+def get_game_coins(username: str) -> str:
+    """查询用户的【游戏金币】数量。
+    Args:
+        username: 用户名
+    """
+    return f"{username} 游戏金币 300 个"
 
-def tool_calculator(args: ToolCall) -> ToolResult:
-    if args.is_error:
-        return ToolResult(
-            id=args.id,
-            content="工具执行错误",
-            is_error=True
-        )
-    # 拿到参数做计算 args.arguments
-    return ToolResult(
-        id=args.id,
-        content="账户余额为 -999 元"
-    )
+tools = [get_user_balance, get_game_coins]
+tool_map = {t.name: t for t in tools}
+
 
 async def chat(model: str, tools: list[Tool]):
     client = LLM(model)
@@ -59,7 +39,7 @@ async def chat(model: str, tools: list[Tool]):
 
     tool_use_blocks: list[ToolCall] = res1.tool_calls
     if len(tool_use_blocks) > 0:
-        tool_results: list[ToolResult] = [tool_calculator(block) for block in tool_use_blocks]
+        tool_results: list[ToolResult] = [dispatch(call=block, tool_map=tool_map) for block in tool_use_blocks]
         client.append_tool_round(res=res1, messages=messages, tool_results=tool_results)
 
         res2 = await client.chat(messages=messages, tools=tools)
@@ -80,7 +60,7 @@ async def stream_chat(model: str, tools: list[Tool]):
             print("tools 执行中...")
             tool_use_blocks: list[ToolCall] = chunk.tool_call
             if len(tool_use_blocks) > 0:
-                tool_results: list[ToolResult] = [tool_calculator(block) for block in tool_use_blocks]
+                tool_results: list[ToolResult] = [dispatch(call=block, tool_map=tool_map) for block in tool_use_blocks]
                 client.append_tool_round_stream(messages=messages, tool_results=tool_results, content=chunk.assistant_content)
 
                 streams2 = client.stream_chat(messages=messages, tools=tools)
@@ -94,8 +74,8 @@ async def stream_chat(model: str, tools: list[Tool]):
             
 
 async def main():
-    # await stream_chat(model="claude-sonnet-4-6", tools=tools_claude)
-    await stream_chat(model="deepseek-v4-flash", tools=tools_openai)
+    # await stream_chat(model="claude-sonnet-4-6", tools=tools)
+    await stream_chat(model="deepseek-v4-flash", tools=tools)
 
 
 if __name__ == "__main__":

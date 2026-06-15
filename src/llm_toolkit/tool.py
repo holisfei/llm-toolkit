@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from loguru import logger
+
 from llm_toolkit.stream_toolcall import StreamAccumulator
 from llm_toolkit.types import Tool, ToolCall, ToolResult
 
@@ -101,3 +103,25 @@ def tool_generate_message_to_openai(stream_accumulator: StreamAccumulator) -> li
             }
         )
     return tool_calls
+
+# 模型返回 ToolCall 后
+
+def dispatch(call: ToolCall, tool_map: dict[str, Any]) -> ToolResult:
+    if call.is_error:
+        return ToolResult(
+            id=call.id,
+            content="工具执行错误",
+            is_error=True
+        )
+    
+    tool: Tool | None = tool_map.get(call.name)
+    if tool is None: # 模型调了一个不存在的工具 — 会发生吗? 会! (D11 伏笔)
+        return ToolResult(
+            id=call.id, 
+            content=f"未知工具 {call.name}", 
+            is_error=True
+        )
+    
+    result = tool.run(call.arguments)
+    logger.debug(f"工具执行后 {tool.name} 参数:{call.arguments} 执行结果:{result}")
+    return ToolResult(id=call.id, content=result)
