@@ -23,7 +23,7 @@ import hashlib
 import json
 from typing import Any
 
-from llm_toolkit.types import ChatResponse, Message
+from llm_toolkit.models import ChatResponse, Message
 
 
 class RequestCache:

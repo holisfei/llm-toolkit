@@ -1,9 +1,9 @@
 
 import pytest
 
+from llm_toolkit.models import ToolCall, tool
 from llm_toolkit.stream_toolcall import _ToolCallAccumulator
 from llm_toolkit.tool_transform import dispatch_all
-from llm_toolkit.types import ToolCall, tool
 
 
 def test_tool_generates_schema() -> None:

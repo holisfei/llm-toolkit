@@ -6,8 +6,8 @@ from typing import Any
 
 from loguru import logger
 
+from llm_toolkit.models import Tool, ToolCall, ToolResult
 from llm_toolkit.stream_toolcall import StreamAccumulator
-from llm_toolkit.types import Tool, ToolCall, ToolResult
 
 # ============ 方向① 发出去: Tool -> 两家请求格式 ============
 

@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from loguru import logger
 
-from llm_toolkit.types import StreamChunk, ToolCall
+from llm_toolkit.models import StreamChunk, ToolCall
 
 
 @dataclass

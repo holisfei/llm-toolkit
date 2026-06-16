@@ -7,9 +7,9 @@ import litellm
 from litellm import ModelResponse
 from litellm import Usage as liteUsage
 
+from llm_toolkit.models import ChatResponse, Message, StreamChunk, Tool, ToolResult, Usage
 from llm_toolkit.providers.base import BaseProvider
 from llm_toolkit.stream_toolcall import StreamAccumulator
-from llm_toolkit.types import ChatResponse, Message, StreamChunk, Tool, ToolResult, Usage
 
 
 class LiteLLMProvider(BaseProvider):

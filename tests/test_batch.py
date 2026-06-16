@@ -9,7 +9,7 @@ import respx
 
 from llm_toolkit.client import LLM
 from llm_toolkit.exceptions import LLMBadRequestError
-from llm_toolkit.types import ChatResponse, LLMUrl, Message, Role
+from llm_toolkit.models import ChatResponse, LLMUrl, Message, Role
 
 
 @respx.mock

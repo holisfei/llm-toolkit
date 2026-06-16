@@ -6,7 +6,7 @@ from typing import Any
 
 from loguru import logger
 
-from llm_toolkit.types import Usage
+from llm_toolkit.models import Usage
 
 
 async def parse_anthropic_sse(

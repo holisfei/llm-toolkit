@@ -14,7 +14,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from llm_toolkit.client import LLM
-from llm_toolkit.types import Message, Role
+from llm_toolkit.models import Message, Role
 
 app = typer.Typer(help="llm-toolkit 命令行聊天工具")
 console = Console()

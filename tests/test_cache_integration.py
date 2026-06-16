@@ -4,7 +4,7 @@ import httpx
 import respx
 
 from llm_toolkit.client import LLM
-from llm_toolkit.types import LLMUrl, Message, Role
+from llm_toolkit.models import LLMUrl, Message, Role
 
 
 @respx.mock

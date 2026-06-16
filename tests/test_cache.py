@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from llm_toolkit.cache import RequestCache
-from llm_toolkit.types import ChatResponse, Cost, Message, Role, Usage
+from llm_toolkit.models import ChatResponse, Cost, Message, Role, Usage
 
 
 @pytest.fixture

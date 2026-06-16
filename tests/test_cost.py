@@ -9,7 +9,7 @@ from llm_toolkit.cost import (
     compute_cost,
     get_pricing,
 )
-from llm_toolkit.types import Cost, Usage
+from llm_toolkit.models import Cost, Usage
 
 
 @pytest.fixture

@@ -6,8 +6,8 @@ import json
 from loguru import logger
 
 from llm_toolkit.client import LLM, Message, Role
+from llm_toolkit.models import Tool, ToolCall, ToolResult, tool
 from llm_toolkit.tool_transform import dispatch_one
-from llm_toolkit.types import Tool, ToolCall, ToolResult, tool
 
 
 @tool # 装饰器返回了Tool对象

@@ -6,7 +6,7 @@ from datetime import date
 
 from pydantic import BaseModel
 
-from llm_toolkit.types import Cost, Usage
+from llm_toolkit.models import Cost, Usage
 
 
 class ModelPrice(BaseModel):

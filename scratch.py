@@ -2,7 +2,7 @@ import asyncio
 
 from llm_toolkit.client import LLM
 from llm_toolkit.cost import compute_cost
-from llm_toolkit.types import Message, Role, Usage
+from llm_toolkit.models import Message, Role, Usage
 
 
 async def main() -> None:

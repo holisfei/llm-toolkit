@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 # from loguru import logger
 from llm_toolkit.exceptions import LLMAuthError, LLMBadRequestError, LLMRateLimitError, LLMRequestError, LLMServerError
-from llm_toolkit.types import ChatResponse, Message, StreamChunk, Tool, ToolResult, Usage
+from llm_toolkit.models import ChatResponse, Message, StreamChunk, Tool, ToolResult, Usage
 
 load_dotenv()
 
