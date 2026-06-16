@@ -91,8 +91,8 @@ async def _chat_loop(model: str, system: str | None) -> None:
             full_reply: str = ""
             print("Assistant> ")
             async for chunk in llm.stream_chat(messages):
-                print(chunk, end="", flush=True)
-                full_reply += chunk
+                print(chunk.chunk, end="", flush=True)
+                full_reply += chunk.chunk
             print()
             # 3.6 把完整回复 append 成 ASSISTANT message 到 history
             messages.append(Message(role=Role.ASSISTANT, content=full_reply))

@@ -14,7 +14,7 @@ from llm_toolkit.providers.base import BaseProvider
 from llm_toolkit.providers.deepseek import DeepSeekProvider
 from llm_toolkit.providers.glm import GlmProvider
 from llm_toolkit.providers.litellm import LiteLLMProvider
-from llm_toolkit.types import ChatResponse, Cost, EnvApiKeyName, Message, Role, StreamChunk, ToolResult, Usage
+from llm_toolkit.types import ChatResponse, Cost, EnvApiKeyName, Message, Role, StreamChunk, Tool, ToolResult, Usage
 
 model_provider: dict[str, BaseProvider] = {
     "claude": AnthropicProvider(env_name=EnvApiKeyName.ANTHROPIC_API_KEY),
@@ -75,7 +75,7 @@ class LLM:
     async def chat(
         self,
         messages: list[Message] | str, 
-        tools: list[dict[str, Any]] | None = None,
+        tools: list[Tool] | None = None,
         wait_timeout: float | None = None
     ) -> ChatResponse:
         msgs: list[Message] = self._normalize(messages)
@@ -111,7 +111,7 @@ class LLM:
     async def stream_chat(
         self,
         messages: list[Message] | str,
-        tools: list[dict[str, Any]] | None = None,
+        tools: list[Tool] | None = None,
     ) -> AsyncIterator[StreamChunk]:
         msgs: list[Message] = self._normalize(messages)
         

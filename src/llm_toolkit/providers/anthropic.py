@@ -19,7 +19,7 @@ from llm_toolkit.providers.base import BaseProvider, generate_params, translate_
 from llm_toolkit.retry import make_retrying
 from llm_toolkit.stream_parse import parse_anthropic_sse
 from llm_toolkit.stream_toolcall import StreamAccumulator
-from llm_toolkit.tool import parse_anthropic_tool_calls, tool_generate_message_to_anthropic, tool_result_to_anthropic, tool_to_anthropic
+from llm_toolkit.tool_transform import parse_anthropic_tool_calls, tool_generate_message_to_anthropic, tool_result_to_anthropic, tool_to_anthropic
 from llm_toolkit.types import ChatResponse, EnvApiKeyName, LLMUrl, Message, Role, StreamChunk, Tool, ToolResult, Usage
 
 load_dotenv()

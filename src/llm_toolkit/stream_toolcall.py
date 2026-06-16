@@ -19,6 +19,10 @@ class _ToolCallAccumulator:
     def add_json_fragment(self, fragment: str) -> None:
         self._arguments_buffer += fragment
 
+    @property
+    def full_arguments(self) -> str:
+        return self._arguments_buffer
+
     def finalize(self) -> ToolCall:
         """碎片攒完(收到结束信号)后, 一次性 parse 成完整 ToolCall.
         """
@@ -61,28 +65,28 @@ class StreamAccumulator:
         if data_type == "content_block_start": # 开始 tool
             content_block: dict[str, Any] = event["content_block"]
             if content_block["type"] == "tool_use":
-                index: int = event["index"]
-                self._tool_accs[index] = _ToolCallAccumulator(
+                index_tool_use: int = event["index"]
+                self._tool_accs[index_tool_use] = _ToolCallAccumulator(
                     id=content_block["id"],
                     name=content_block["name"]
                 )
         elif data_type == "content_block_delta": # 收集 text 和 tool
-            delta: dict[str, Any] = event["delta"]
-            if delta["type"] == "text_delta": # text 块
+            delta_block: dict[str, Any] = event["delta"]
+            if delta_block["type"] == "text_delta": # text 块
                 self._current_kind = "text_delta"
-                self._text_buffer += delta["text"]
-                self._text_chunk = delta["text"]
-            elif delta["type"] == "input_json_delta": # tool 块
+                self._text_buffer += delta_block["text"]
+                self._text_chunk = delta_block["text"]
+            elif delta_block["type"] == "input_json_delta": # tool 块
                 self._current_kind = "tool_call"
-                index: int = event["index"]
-                partial_json: str = delta["partial_json"]
-                self._tool_accs[index].add_json_fragment(partial_json)
+                index_tool: int = event["index"]
+                partial_json: str = delta_block["partial_json"]
+                self._tool_accs[index_tool].add_json_fragment(partial_json)
         elif data_type == "content_block_stop": # 本次会话 单个tool流结束
             pass
         elif data_type == "message_delta": # 本次会话 所有tools流结束
             self._current_kind = "done"
-            delta: dict[str, Any] = event["delta"]
-            stop_reason: str = delta.get("stop_reason", "")
+            delta_message: dict[str, Any] = event["delta"]
+            stop_reason: str = delta_message.get("stop_reason", "")
             if stop_reason == "tool_use":
                 self._stop_reason = stop_reason
 

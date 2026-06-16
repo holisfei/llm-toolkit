@@ -80,10 +80,15 @@ async def parse_openai_sse(
 
           choices: dict[str, Any] = choices_list[0]
           delta: dict[str, Any] = choices.get("delta", {})
-          content: str | None = delta.get("reasoning_content", None) # 思考过程
-          if content is not None:
-               continue
+          reasoning_content: str | None = delta.get("reasoning_content", None) # 思考过程
+          content: str | None = delta.get("content", None)
+          tool_calls: list[dict[str, Any]] | None = delta.get("tool_calls", None)
 
+          if reasoning_content is not None:
+               continue
+          if tool_calls is None and content is None:
+               continue
+          
           if usage is not None and len(usage) > 0:
                input_tokens: int = usage.get("prompt_tokens", 0)
                output_tokens: int = usage.get("completion_tokens", 0)

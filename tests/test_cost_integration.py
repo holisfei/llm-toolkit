@@ -57,7 +57,7 @@ async def test_stream_chat_openai_accumulates_cost() -> None:
     llm = LLM("deepseek-v4-flash")
     chunks = []
     async for chunk in llm.stream_chat([Message(role=Role.USER, content="hello")]):
-        chunks.append(chunk)
+        chunks.append(chunk.chunk)
     
     assert "".join(chunks) == "hi"
     # 1. 断言 llm.cost_tracker.call_count == 1
@@ -89,7 +89,7 @@ async def test_stream_chat_anthropic_accumulates_cost() -> None:
     llm = LLM("claude-sonnet-4-6")
     chunks = []
     async for chunk in llm.stream_chat([Message(role=Role.USER, content="hello")]):
-        chunks.append(chunk)
+        chunks.append(chunk.chunk)
     
     assert "".join(chunks) == "hi"
     # 1. 断言 llm.cost_tracker.call_count == 1

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Literal, get_type_hints
 
+import docstring_parser
 from pydantic import BaseModel, Field
 
 
@@ -69,6 +70,8 @@ class ChatResponse(BaseModel):
     content_tools: Any  # 模型回复的完整内容，用于后续的message的tools后续拼接
     raw: Any # 原始响应（保底：万一统一字段没覆盖到，还能从这里捞）
 
+############# 工具调用 ############# 
+
 @dataclass(frozen=True)
 class Tool:
     """统一的工具定义. 发给模型, 告诉它有哪些工具可用."""
@@ -76,8 +79,12 @@ class Tool:
     description: str
     input_schema: dict[str, Any]
     func: Callable[..., Any]
-    def run(self, arguments: dict[str, Any]) -> Any:
+    async def run(self, arguments: dict[str, Any]) -> Any:
+        # 如果是个异步函数，则需要 await
+        if inspect.iscoroutinefunction(self.func):
+            return await self.func(**arguments)
         return self.func(**arguments)
+
 def tool(func: Callable[..., Any]) -> Tool:
     """装饰器: 把一个普通函数变成 Tool.
     从函数自动提取:
@@ -90,8 +97,16 @@ def tool(func: Callable[..., Any]) -> Tool:
 
     # 2. 获取函数 description（从 docstring 的第一行）
     description = ""
+
+    # 参数的描述信息
+    param_descriptions = {}
     if func.__doc__:
-        description = func.__doc__.strip().split("\n")[0]
+        parsed_doc = docstring_parser.parse(func.__doc__)
+        # 提取函数的整体描述（通常是第一行或 Summary）
+        description = parsed_doc.short_description or ""
+        # 将参数的描述存入字典，方便后续查找
+        for param_descr in parsed_doc.params:
+            param_descriptions[param_descr.arg_name] = param_descr.description
 
     if len(description) == 0:
         raise ValueError("函数缺少描述信息，请补全描述信息")
@@ -115,14 +130,21 @@ def tool(func: Callable[..., Any]) -> Tool:
     for param_name, param in signature.parameters.items():
         # 获取参数类型
         py_type = type_hints.get(param_name, str)
-        
         if py_type not in json_type_map:
             raise ValueError(f"工具 {name} 的参数 {param_name} 类型 {py_type} 暂不支持")
-        
-        prop_scheme = {
+        prop_schema = {
             "type": json_type_map.get(py_type, "string")
         }
-        properties[param_name] = prop_scheme
+
+        # 获取参数 描述
+        if param_name in param_descriptions:
+            para_descr: str | None = param_descriptions[param_name]
+            if para_descr is not None:
+                prop_schema["description"] = para_descr
+
+        properties[param_name] = prop_schema
+
+        # 设置 required
         # 如果参数值没有默认值，则任务是必填参数
         if param.default is inspect.Parameter.empty:
             required_params.append(param_name)
@@ -155,13 +177,15 @@ class ToolResult:
     id: str
     content: Any
     is_error: bool = False # 工具是否出错
+    def __str__(self) -> str:
+        return f"ToolResult: {self.id} {self.content}"
 
 @dataclass(frozen=True) # frozen 不能改变已经生成的实例属性
 class StreamChunk:
     """流式输出的一个片段.
     """
-    kind: Literal["text_delta", "tool_call", "done"]
+    kind: Literal["text_delta", "tool_call", "done", "start"]
     chunk: str = ""    # kind==text_delta 时有, 流式文字
     text: str | None = None          # kind==text_delta 时有, 完整的文字
-    tool_call: ToolCall | None = None  # kind==tool_call 时有, 完整的tools
+    tool_call: list[ToolCall] | None = None  # kind==tool_call 时有, 完整的tools
     assistant_content: Any = None   # done 时携带: 拼下一轮 assistant 消息的原生结构

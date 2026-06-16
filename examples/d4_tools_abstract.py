@@ -6,7 +6,7 @@ import json
 from loguru import logger
 
 from llm_toolkit.client import LLM, Message, Role
-from llm_toolkit.tool import dispatch
+from llm_toolkit.tool_transform import dispatch_one
 from llm_toolkit.types import Tool, ToolCall, ToolResult, tool
 
 
@@ -39,7 +39,7 @@ async def chat(model: str, tools: list[Tool]):
 
     tool_use_blocks: list[ToolCall] = res1.tool_calls
     if len(tool_use_blocks) > 0:
-        tool_results: list[ToolResult] = [dispatch(call=block, tool_map=tool_map) for block in tool_use_blocks]
+        tool_results: list[ToolResult] = [dispatch_one(call=block, tool_map=tool_map) for block in tool_use_blocks]
         client.append_tool_round(res=res1, messages=messages, tool_results=tool_results)
 
         res2 = await client.chat(messages=messages, tools=tools)
@@ -60,7 +60,7 @@ async def stream_chat(model: str, tools: list[Tool]):
             print("tools 执行中...")
             tool_use_blocks: list[ToolCall] = chunk.tool_call
             if len(tool_use_blocks) > 0:
-                tool_results: list[ToolResult] = [dispatch(call=block, tool_map=tool_map) for block in tool_use_blocks]
+                tool_results: list[ToolResult] = [dispatch_one(call=block, tool_map=tool_map) for block in tool_use_blocks]
                 client.append_tool_round_stream(messages=messages, tool_results=tool_results, content=chunk.assistant_content)
 
                 streams2 = client.stream_chat(messages=messages, tools=tools)

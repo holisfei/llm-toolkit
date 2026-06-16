@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from typing import Any
 
 import litellm
 from litellm import ModelResponse
@@ -42,12 +43,14 @@ class LiteLLMProvider(BaseProvider):
 
         return ChatResponse(
             content=response.choices[0].message.content,
+            tool_calls=[],
             usage=Usage(
                 input_tokens=response.usage.prompt_tokens,
                 output_tokens=response.usage.completion_tokens,
                 cached_tokens=0
             ),
             model=model_name,
+            content_tools="",
             raw=response.model_dump()
         )
 
@@ -78,19 +81,23 @@ class LiteLLMProvider(BaseProvider):
             if content is None:
                 continue
 
-            yield content
+            yield StreamChunk(
+                kind="text_delta",
+                chunk=content,
+            )
 
     def append_tool_round(
         self, 
         res: ChatResponse, 
         messages: list[Message], 
-        tool_results: list[ToolResult]
+        tool_results: list[ToolResult],
     ) -> None:
         pass
 
     def append_tool_round_stream(
         self,
         messages: list[Message], 
-        tool_results: list[ToolResult]
+        tool_results: list[ToolResult],
+        content: Any,
     ) -> None:
         pass

@@ -17,7 +17,7 @@ from llm_toolkit.providers.base import BaseProvider, generate_params, translate_
 from llm_toolkit.retry import make_retrying
 from llm_toolkit.stream_parse import parse_openai_sse
 from llm_toolkit.stream_toolcall import StreamAccumulator
-from llm_toolkit.tool import parse_openai_tool_calls, tool_generate_message_to_openai, tool_result_to_openai, tool_to_openai
+from llm_toolkit.tool_transform import parse_openai_tool_calls, tool_generate_message_to_openai, tool_result_to_openai, tool_to_openai
 from llm_toolkit.types import ChatResponse, LLMUrl, Message, Role, StreamChunk, Tool, ToolResult, Usage
 
 

@@ -21,6 +21,7 @@ def chat_response() -> ChatResponse:
         usage=Usage(input_tokens=10, output_tokens=20, cached_tokens=0),
         cost=Cost(input_usd=0.001, output_usd=0.002, cached_usd=0.0),
         model="deepseek-v4-flash",
+        content_tools=None,
         raw={},
     )
 
@@ -95,6 +96,7 @@ class TestCacheGetSet:
             usage=Usage(input_tokens=20, output_tokens=20, cached_tokens=0),
             cost=Cost(input_usd=0.002, output_usd=0.002, cached_usd=0.0),
             model="deepseek-v4-flash",
+            content_tools=None,
             raw={},
         )
 
